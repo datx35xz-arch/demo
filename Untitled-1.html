@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProManager - Nền tảng Quản lý Dự án Fullstack</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<script>
+    // Hàm tự động gắn sự kiện xóa cho các nút thùng rác của dự án trên giao diện
+function attachProjectDeleteHandlers() {
+    // Tìm tất cả các nút xóa dự án (bạn có thể điều chỉnh selector cho khớp với class nút xóa của dự án)
+    const deleteButtons = document.querySelectorAll('.project-delete-btn'); 
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const projectId = this.getAttribute('data-id');
+            handleDeleteProject(projectId);
+        });
+    });
+}
+    // Xử lý sự kiện khi gửi form Đăng ký
+    async function handleRegister(event) {
+        event.preventDefault();
+        const username = document.getElementById('reg-username').value;
+        const password = document.getElementById('reg-password').value;
+
+        try {
+            const response = await fetch('http://localhost:8080/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await response.json();
+            alert(data.message); // Hiển thị thông báo từ Backend trả về
+        } catch (error) {
+            console.error('Lỗi:', error);
+            alert('Không thể kết nối đến server!');
+        }
+    }
+
+    // Xử lý sự kiện khi gửi form Đăng nhập
+    async function handleLogin(event) {
+        event.preventDefault();
+        const username = document.getElementById('login-username').value;
+        const password = document.getElementById('login-password').value;
+
+        try {
+            const response = await fetch('http://localhost:8080/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await response.json();
+            alert(data.message);
+            if (data.status === 'success') {
+                // Đăng nhập thành công, chuyển hướng hoặc thay đổi giao diện tại đây
+                console.log('Đăng nhập thành công!');
+            }
+        } catch (error) {
+            console.error('Lỗi:', error);
+            alert('Không thể kết nối đến server!');
+        }
+    }
+</script>
+<body class="h-full bg-slate-50 text-slate-800 antialiased font-sans flex flex-col">
+
+    <!-- Màn hình Đăng nhập / Đăng ký -->
+    <div id="auth-screen" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-white text-center">
+                <div class="w-12 h-12 bg-white/20 rounded-xl mx-auto flex items-center justify-center mb-3 backdrop-blur-md">
+                    <i class="fa-solid fa-layer-group text-2xl"></i>
+                </div>
+                <h2 id="auth-title" class="text-2xl font-bold">Đăng nhập hệ thống</h2>
+                <p id="auth-subtitle" class="text-blue-100 text-sm mt-1">Quản lý dự án thực tập thông minh</p>
+            </div>
+            <div class="p-6">
+                <form id="auth-form" onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                    <div id="name-field" class="hidden">
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Họ và tên</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-user"></i></span>
+                            <input type="text" id="input-name" class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" placeholder="Nguyễn Văn A">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Email đăng nhập</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-envelope"></i></span>
+                            <input type="email" id="input-email" required class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" placeholder="admin@promanager.io">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Mật khẩu</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-lock"></i></span>
+                            <input type="password" id="input-pass" required class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" placeholder="••••••••">
+                        </div>
+                    </div>
+                    <button type="submit" id="auth-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition shadow-lg shadow-blue-500/30">Đăng nhập</button>
+                </form>
+                <div class="mt-5 text-center text-sm text-slate-600">
+                    <span id="auth-switch-text">Chưa có tài khoản?</span>
+                    <button onclick="toggleAuthMode()" id="auth-switch-btn" class="text-blue-600 font-semibold hover:underline ml-1">Đăng ký ngay</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Giao diện chính Full-stack App -->
+    <div id="app-shell" class="flex h-full overflow-hidden">
+        
+        <!-- Sidebar Navigation -->
+        <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800">
+            <div class="p-5 flex items-center gap-3 border-b border-slate-800">
+                <div class="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-blue-600/40">
+                    <i class="fa-solid fa-layer-group"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-white tracking-wide">ProManager</h1>
+                    <span class="text-xs text-slate-400 font-mono">v2.4 Full-stack</span>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="flex-1 p-4 space-y-1.5 overflow-y-auto">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition bg-blue-600 text-white shadow-md shadow-blue-600/20">
+                    <i class="fa-solid fa-chart-pie w-5"></i> Tổng quan (Dashboard)
+                </button>
+                <button onclick="switchTab('projects')" id="nav-projects" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition hover:bg-slate-800 text-slate-300">
+                    <i class="fa-solid fa-diagram-project w-5"></i> Dự án &amp; Công việc
+                </button>
+                <button onclick="switchTab('staff')" id="nav-staff" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition hover:bg-slate-800 text-slate-300">
+                    <i class="fa-solid fa-users-gear w-5"></i> Quản lý Nhân sự (CRUD)
+                </button>
+                <button onclick="switchTab('profile')" id="nav-profile" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition hover:bg-slate-800 text-slate-300">
+                    <i class="fa-solid fa-user-gear w-5"></i> Cấu hình cá nhân
+                </button>
+            </nav>
+
+            <!-- User Info & Logout -->
+            <div class="p-4 border-t border-slate-800">
+                <div class="flex items-center gap-3 mb-3">
+                    <div id="user-avatar" class="w-9 h-9 rounded-full bg-blue-500 font-bold text-white flex items-center justify-center">A</div>
+                    <div class="overflow-hidden">
+                        <p id="user-name-disp" class="text-sm font-medium text-white truncate">Admin Demo</p>
+                        <p id="user-role-disp" class="text-xs text-blue-400 font-mono">Project Manager</p>
+                    </div>
+                </div>
+                <button onclick="logout()" class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-800 hover:bg-rose-600/20 hover:text-rose-400 text-slate-300 rounded-lg text-xs font-semibold transition border border-slate-700">
+                    <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất hệ thống
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col overflow-hidden bg-slate-100">
+            <!-- Top Bar -->
+            <header class="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-3">
+                    <h2 id="current-page-title" class="text-lg font-bold text-slate-800">Tổng quan hệ thống</h2>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-xs font-medium border border-emerald-200">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> API Mock Active (LocalStorage)
+                    </div>
+                    <button onclick="resetSystemData()" class="text-xs text-slate-500 hover:text-rose-600 transition flex items-center gap-1 font-medium bg-slate-100 hover:bg-rose-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                        <i class="fa-solid fa-rotate-right"></i> Reset dữ liệu mẫu
+                    </button>
+                </div>
+            </header>
+
+            <!-- Dynamic Workspace Content -->
+            <div class="flex-1 overflow-y-auto p-6">
+
+                <!-- TAB 1: DASHBOARD -->
+                <div id="tab-dashboard" class="space-y-6">
+                    <!-- Metric Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-semibold uppercase text-slate-400">Tổng số Dự án</p>
+                                <h3 id="stat-projects" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-diagram-project"></i>
+                            </div>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-semibold uppercase text-slate-400">Công việc Hoàn thành</p>
+                                <h3 id="stat-tasks-done" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-list-check"></i>
+                            </div>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-semibold uppercase text-slate-400">Đang thực hiện</p>
+                                <h3 id="stat-tasks-prog" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-clock-rotate-left"></i>
+                            </div>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-semibold uppercase text-slate-400">Nhân sự tham gia</p>
+                                <h3 id="stat-staff" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity & Quick Projects -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-bold text-slate-800 text-base">Tiến độ Dự án nổi bật</h3>
+                                <button onclick="switchTab('projects')" class="text-xs text-blue-600 font-semibold hover:underline">Xem tất cả</button>
+                            </div>
+                            <div id="dash-projects-list" class="space-y-4">
+                                <!-- Rendered dynamically -->
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                            <h3 class="font-bold text-slate-800 text-base mb-4">Hoạt động hệ thống gần đây</h3>
+                            <div id="dash-activities" class="space-y-4">
+                                <!-- Rendered dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: PROJECTS & TASKS -->
+                <div id="tab-projects" class="space-y-6 hidden">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                        <div class="flex items-center gap-3 w-full sm:w-auto">
+                            <select id="project-filter" onchange="renderTasks()" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:border-blue-500">
+                                <!-- Dynamically populated -->
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                            <button onclick="openProjectModal()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-2">
+                                <i class="fa-solid fa-plus"></i> Thêm Dự án
+                            <button onclick="handleDeleteProject(document.getElementById('project-filter').value)" class="px-3.5 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-semibold transition flex items-center gap-2">
+    <i class="fa-solid fa-trash"></i> Xóa dự án này
+</button>
+                            </button>
+                            <button onclick="openTaskModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition shadow-md shadow-blue-600/30 flex items-center gap-2">
+                                <i class="fa-solid fa-plus"></i> Thêm Công việc mới
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Kanban / Task Board Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Todo Column -->
+                        <div class="bg-slate-100/80 border border-slate-200/80 rounded-2xl p-4 flex flex-col h-[650px]">
+                            <div class="flex items-center justify-between mb-3 px-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+                                    <h3 class="font-bold text-slate-700 text-sm">Chưa bắt đầu (To Do)</h3>
+                                </div>
+                                <span id="count-todo" class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full text-xs font-bold">0</span>
+                            </div>
+                            <div id="col-todo" class="flex-1 overflow-y-auto space-y-3 pr-1" ondragover="allowDrop(event)" ondrop="dropTask(event, 'todo')"></div>
+                        </div>
+
+                        <!-- In Progress Column -->
+                        <div class="bg-slate-100/80 border border-slate-200/80 rounded-2xl p-4 flex flex-col h-[650px]">
+                            <div class="flex items-center justify-between mb-3 px-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+                                    <h3 class="font-bold text-slate-700 text-sm">Đang thực hiện (In Progress)</h3>
+                                </div>
+                                <span id="count-inprogress" class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full text-xs font-bold">0</span>
+                            </div>
+                            <div id="col-inprogress" class="flex-1 overflow-y-auto space-y-3 pr-1" ondragover="allowDrop(event)" ondrop="dropTask(event, 'inprogress')"></div>
+                        </div>
+
+                        <!-- Done Column -->
+                        <div class="bg-slate-100/80 border border-slate-200/80 rounded-2xl p-4 flex flex-col h-[650px]">
+                            <div class="flex items-center justify-between mb-3 px-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                                    <h3 class="font-bold text-slate-700 text-sm">Hoàn thành (Done)</h3>
+                                </div>
+                                <span id="count-done" class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full text-xs font-bold">0</span>
+                            </div>
+                            <div id="col-done" class="flex-1 overflow-y-auto space-y-3 pr-1" ondragover="allowDrop(event)" ondrop="dropTask(event, 'done')"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 3: STAFF MANAGEMENT (CRUD) -->
+                <div id="tab-staff" class="space-y-6 hidden">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div class="relative w-full sm:w-80">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-search"></i></span>
+                            <input type="text" id="staff-search" oninput="renderStaffTable()" placeholder="Tìm kiếm nhân sự..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500">
+                        </div>
+                        <button onclick="openStaffModal()" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition shadow-md shadow-blue-600/30 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-user-plus"></i> Thêm Nhân sự mới
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-xs font-semibold">
+                                        <th class="p-4">Nhân sự</th>
+                                        <th class="p-4">Vai trò / Vị trí</th>
+                                        <th class="p-4">Email liên hệ</th>
+                                        <th class="p-4">Phòng ban</th>
+                                        <th class="p-4 text-center">Hành động</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="staff-table-body" class="divide-y divide-slate-100 text-sm">
+                                    <!-- Rendered dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 4: PROFILE CONFIGURATION -->
+                <div id="tab-profile" class="space-y-6 hidden max-w-2xl mx-auto">
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6">
+                        <h3 class="text-lg font-bold text-slate-800 mb-4">Cấu hình Thông tin Cá nhân</h3>
+                        <form id="profile-form" onsubmit="saveProfile(event)" class="space-y-4">
+                            <div class="flex items-center gap-4 mb-6">
+                                <div id="profile-avatar-preview" class="w-16 h-16 rounded-full bg-blue-600 text-white text-2xl font-bold flex items-center justify-center">A</div>
+                                <div>
+                                    <h4 id="profile-display-name" class="font-bold text-slate-800 text-base">Admin</h4>
+                                    <p class="text-xs text-slate-500">Cập nhật ảnh đại diện và thông tin cá nhân của bạn.</p>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Họ và tên</label>
+                                <input type="text" id="prof-name" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Email</label>
+                                <input type="email" id="prof-email" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Chức vụ / Vị trí</label>
+                                <input type="text" id="prof-role" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div class="pt-2">
+                                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition shadow-md shadow-blue-600/30">Lưu thay đổi</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Thêm/Sửa Nhân sự -->
+    <div id="staff-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+                <h3 id="staff-modal-title" class="font-bold text-slate-800 text-base">Thêm Nhân sự mới</h3>
+                <button onclick="closeStaffModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="staff-form" onsubmit="handleStaffSubmit(event)" class="p-6 space-y-4">
+                <input type="hidden" id="staff-id">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Họ tên nhân sự</label>
+                    <input type="text" id="staff-name" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" placeholder="VD: Trần Quốc Đạt">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Email</label>
+                    <input type="email" id="staff-mail" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" placeholder="dat@promanager.io">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Vai trò</label>
+                    <input type="text" id="staff-position" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" placeholder="VD: Fullstack Developer">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Phòng ban</label>
+                    <input type="text" id="staff-dept" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" placeholder="VD: Engineering">
+                </div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                    <button type="button" onclick="closeStaffModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition">Hủy</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition">Lưu nhân sự</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Thêm/Sửa Công việc (Task) -->
+    <div id="task-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+                <h3 class="font-bold text-slate-800 text-base">Thêm công việc mới</h3>
+                <button onclick="closeTaskModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="task-form" onsubmit="handleTaskSubmit(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Tiêu đề công việc</label>
+                    <input type="text" id="task-title" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" placeholder="VD: Thiết kế Database PostgreSQL">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Thuộc dự án</label>
+                        <select id="task-project" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500">
+                            <!-- Populated -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Độ ưu tiên</label>
+                        <select id="task-priority" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500">
+                            <option value="Thấp">Thấp</option>
+                            <option value="Trung bình" selected>Trung bình</option>
+                            <option value="Cao">Cao</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Giao cho nhân sự</label>
+                        <select id="task-assignee" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500">
+                            <!-- Populated -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Trạng thái</label>
+                        <select id="task-status" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500">
+                            <option value="todo">Chưa bắt đầu</option>
+                            <option value="inprogress">Đang thực hiện</option>
+                            <option value="done">Hoàn thành</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                    <button type="button" onclick="closeTaskModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition">Hủy</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition">Tạo công việc</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Thêm Dự án -->
+    <div id="project-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+                <h3 class="font-bold text-slate-800 text-base">Thêm Dự án mới</h3>
+                <button onclick="closeProjectModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="project-form" onsubmit="handleProjectSubmit(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Tên dự án</label>
+                    <input type="text" id="proj-name" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" placeholder="VD: E-Commerce Mobile App">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Mô tả ngắn</label>
+                    <input type="text" id="proj-desc" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" placeholder="VD: Nền tảng bán hàng đa kênh">
+                </div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                    <button type="button" onclick="closeProjectModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition">Hủy</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition">Tạo dự án</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        async function handleDeleteProject(projectId) {
+    if (!confirm('Bạn có chắc chắn muốn xóa dự án này không?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`http://localhost:8080/api/projects/${projectId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+        alert(data.message || 'Xóa dự án thành công!');
+        
+        // Tải lại trang hoặc cập nhật lại danh sách hiển thị
+        location.reload();
+    } catch (error) {
+        console.error('Lỗi khi xóa:', error);
+        alert('Không thể kết nối đến server Spring Boot!');
+    }
+}
+        async function handleProjectSubmit(event) {
+    event.preventDefault(); // Chặn hành vi load lại trang mặc định của form
+
+    const projectName = document.getElementById('proj-name').value;
+    const description = document.getElementById('proj-desc').value;
+
+    try {
+        const response = await fetch('http://localhost:8080/api/projects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projectName, description })
+        });
+
+        const data = await response.json();
+        alert(data.message || 'Tạo dự án thành công!');
+        
+        // Đóng modal hoặc tải lại trang sau khi tạo thành công
+        location.reload();
+    } catch (error) {
+        console.error('Lỗi:', error);
+        alert('Không thể kết nối đến server Spring Boot!');
+    }
+}
+        /* -------------------------------------------------------------------------- */
+        /* MOCK DATABASE & STATE MANAGEMENT                                           */
+        /* -------------------------------------------------------------------------- */
+        const DEFAULT_DATA = {
+            currentUser: { name: "Trần Quốc Đạt", email: "dat@promanager.io", role: "Project Manager" },
+            isLoggedIn: true,
+            authMode: 'login', // login or register
+            staff: [
+                { id: 1, name: "Trần Quốc Đạt", email: "dat@promanager.io", position: "Project Manager", dept: "Management" },
+                { id: 2, name: "Nguyễn Văn An", email: "an.nv@promanager.io", position: "Frontend Developer", dept: "Engineering" },
+                { id: 3, name: "Lê Thị Hồng", email: "hong.lt@promanager.io", position: "Backend Developer", dept: "Engineering" },
+                { id: 4, name: "Phạm Minh Hoàng", email: "hoang.pm@promanager.io", position: "UI/UX Designer", dept: "Design" }
+            ],
+            projects: [
+                { id: 1, name: "Hệ thống Quản lý Bệnh viện thông minh", desc: "Ứng dụng đặt lịch khám và quản lý hồ sơ bệnh án trực tuyến" },
+                { id: 2, name: "Nền tảng Thương mại Điện tử EcoShop", desc: "Web app bán hàng tích hợp thanh toán VNPAY và giỏ hàng thời gian thực" }
+            ],
+            tasks: [
+                { id: 101, title: "Xây dựng sơ đồ cơ sở dữ liệu ERD", projectId: 1, priority: "Cao", assignee: "Lê Thị Hồng", status: "done" },
+                { id: 102, title: "Thiết kế giao diện trang Dashboard Admin", projectId: 1, priority: "Trung bình", assignee: "Phạm Minh Hoàng", status: "inprogress" },
+                { id: 103, title: "Tích hợp cổng thanh toán trực tuyến", projectId: 2, priority: "Cao", assignee: "Nguyễn Văn An", status: "todo" },
+                { id: 104, title: "Viết tài liệu API Swagger cho backend", projectId: 2, priority: "Thấp", assignee: "Lê Thị Hồng", status: "todo" }
+            ],
+            activities: [
+                { time: "10 phút trước", text: "Trần Quốc Đạt đã thêm công việc mới vào hệ thống." },
+                { time: "1 giờ trước", text: "Lê Thị Hồng hoàn thành task 'Xây dựng sơ đồ cơ sở dữ liệu ERD'." },
+                { time: "Hôm qua", text: "Hệ thống khởi tạo dữ liệu mẫu thành công." }
+            ]
+        };
+
+        let db = JSON.parse(localStorage.getItem('promanager_db')) || DEFAULT_DATA;
+
+        function saveDB() {
+            localStorage.setItem('promanager_db', JSON.stringify(db));
+            initApp();
+        }
+
+        function resetSystemData() {
+            if(confirm("Bạn có chắc chắn muốn khôi phục lại dữ liệu mẫu ban đầu không?")) {
+                db = JSON.parse(JSON.stringify(DEFAULT_DATA));
+                saveDB();
+            }
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* AUTHENTICATION LOGIC                                                       */
+        /* -------------------------------------------------------------------------- */
+        function checkAuth() {
+            const authScreen = document.getElementById('auth-screen');
+            const appShell = document.getElementById('app-shell');
+            if (!db.isLoggedIn) {
+                authScreen.classList.remove('hidden');
+                appShell.classList.add('filter', 'blur-sm', 'pointer-events-none');
+            } else {
+                authScreen.classList.add('hidden');
+                appShell.classList.remove('filter', 'blur-sm', 'pointer-events-none');
+                updateUserInterface();
+            }
+        }
+
+        function toggleAuthMode() {
+            db.authMode = db.authMode === 'login' ? 'register' : 'login';
+            const title = document.getElementById('auth-title');
+            const subtitle = document.getElementById('auth-subtitle');
+            const nameField = document.getElementById('name-field');
+            const btn = document.getElementById('auth-btn');
+            const switchText = document.getElementById('auth-switch-text');
+            const switchBtn = document.getElementById('auth-switch-btn');
+
+            if (db.authMode === 'register') {
+                title.innerText = "Tạo tài khoản mới";
+                subtitle.innerText = "Đăng ký thành viên thực tập ProManager";
+                nameField.classList.remove('hidden');
+                btn.innerText = "Đăng ký";
+                switchText.innerText = "Đã có tài khoản?";
+                switchBtn.innerText = "Đăng nhập ngay";
+            } else {
+                title.innerText = "Đăng nhập hệ thống";
+                subtitle.innerText = "Quản lý dự án thực tập thông minh";
+                nameField.classList.add('hidden');
+                btn.innerText = "Đăng nhập";
+                switchText.innerText = "Chưa có tài khoản?";
+                switchBtn.innerText = "Đăng ký ngay";
+            }
+        }
+
+        function handleAuthSubmit(e) {
+            e.preventDefault();
+            const email = document.getElementById('input-email').value;
+            const pass = document.getElementById('input-pass').value;
+            const name = document.getElementById('input-name').value;
+
+            if (db.authMode === 'register') {
+                db.currentUser = { name: name || "Thành viên mới", email: email, role: "Intern Fullstack" };
+                // Thêm vào danh sách staff luôn
+                db.staff.push({ id: Date.now(), name: name || "Thành viên mới", email: email, position: "Intern Fullstack", dept: "Engineering" });
+            } else {
+                db.currentUser = { name: email.split('@')[0], email: email, role: "Project Manager" };
+            }
+            db.isLoggedIn = true;
+            saveDB();
+        }
+
+        function logout() {
+            db.isLoggedIn = false;
+            saveDB();
+        }
+
+        function updateUserInterface() {
+            document.getElementById('user-name-disp').innerText = db.currentUser.name;
+            document.getElementById('user-role-disp').innerText = db.currentUser.role;
+            document.getElementById('user-avatar').innerText = db.currentUser.name.charAt(0).toUpperCase();
+            
+            // Profile tab inputs
+            document.getElementById('prof-name').value = db.currentUser.name;
+            document.getElementById('prof-email').value = db.currentUser.email;
+            document.getElementById('prof-role').value = db.currentUser.role;
+            document.getElementById('profile-display-name').innerText = db.currentUser.name;
+            document.getElementById('profile-avatar-preview').innerText = db.currentUser.name.charAt(0).toUpperCase();
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* NAVIGATION & TABS                                                          */
+        /* -------------------------------------------------------------------------- */
+        function switchTab(tabName) {
+            ['dashboard', 'projects', 'staff', 'profile'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.add('hidden');
+                document.getElementById(`nav-${t}`).classList.remove('bg-blue-600', 'text-white', 'shadow-md', 'shadow-blue-600/20');
+                document.getElementById(`nav-${t}`).classList.add('hover:bg-slate-800', 'text-slate-300');
+            });
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+            const activeNav = document.getElementById(`nav-${tabName}`);
+            activeNav.classList.add('bg-blue-600', 'text-white', 'shadow-md', 'shadow-blue-600/20');
+            activeNav.classList.remove('hover:bg-slate-800', 'text-slate-300');
+
+            const titles = {
+                dashboard: 'Tổng quan hệ thống',
+                projects: 'Quản lý Dự án & Công việc (Kanban)',
+                staff: 'Quản lý Nhân sự & Phân quyền (CRUD)',
+                profile: 'Cấu hình thông tin cá nhân'
+            };
+            document.getElementById('current-page-title').innerText = titles[tabName];
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* DASHBOARD RENDERING                                                        */
+        /* -------------------------------------------------------------------------- */
+        function renderDashboard() {
+            document.getElementById('stat-projects').innerText = db.projects.length;
+            document.getElementById('stat-staff').innerText = db.staff.length;
+            
+            const doneCount = db.tasks.filter(t => t.status === 'done').length;
+            const progCount = db.tasks.filter(t => t.status === 'inprogress').length;
+            document.getElementById('stat-tasks-done').innerText = doneCount;
+            document.getElementById('stat-tasks-prog').innerText = progCount;
+
+            // Projects progress list
+            const projContainer = document.getElementById('dash-projects-list');
+            projContainer.innerHTML = db.projects.map(p => {
+                const pTasks = db.tasks.filter(t => t.projectId === p.id);
+                const pDone = pTasks.filter(t => t.status === 'done').length;
+                const percent = pTasks.length ? Math.round((pDone / pTasks.length) * 100) : 0;
+                return `
+                    <div class="bg-slate-50 border border-slate-200/80 p-4 rounded-xl">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-bold text-slate-800 text-sm">${p.name}</h4>
+                            <span class="text-xs font-semibold px-2 py-0.5 bg-blue-100 text-blue-700 rounded-md">${percent}% hoàn thành</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mb-3">${p.desc}</p>
+                        <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                            <div class="bg-blue-600 h-full rounded-full transition-all duration-500" style="width: ${percent}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Activities
+            const actContainer = document.getElementById('dash-activities');
+            actContainer.innerHTML = db.activities.map(a => `
+                <div class="flex items-start gap-3 pb-3 border-b border-slate-100 last:border-0 last:pb-0">
+                    <div class="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0"></div>
+                    <div>
+                        <p class="text-xs text-slate-700 font-medium">${a.text}</p>
+                        <span class="text-[10px] text-slate-400">${a.time}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* PROJECTS & TASKS (KANBAN) LOGIC                                             */
+        /* -------------------------------------------------------------------------- */
+        function renderProjectSelects() {
+            const filterSelect = document.getElementById('project-filter');
+            const taskProjSelect = document.getElementById('task-project');
+            const taskAssigneeSelect = document.getElementById('task-assignee');
+
+            const options = `<option value="all">Tất cả các dự án</option>` + db.projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            filterSelect.innerHTML = options;
+
+            taskProjSelect.innerHTML = db.projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            taskAssigneeSelect.innerHTML = db.staff.map(s => `<option value="${s.name}">${s.name} (${s.position})</option>`).join('');
+        }
+
+        function renderTasks() {
+            const selectedProj = document.getElementById('project-filter').value;
+            const filteredTasks = selectedProj === 'all' ? db.tasks : db.tasks.filter(t => t.projectId == selectedProj);
+
+            const todoCol = document.getElementById('col-todo');
+            const inprogCol = document.getElementById('col-inprogress');
+            const doneCol = document.getElementById('col-done');
+
+            const todoTasks = filteredTasks.filter(t => t.status === 'todo');
+            const inprogTasks = filteredTasks.filter(t => t.status === 'inprogress');
+            const doneTasks = filteredTasks.filter(t => t.status === 'done');
+
+            document.getElementById('count-todo').innerText = todoTasks.length;
+            document.getElementById('count-inprogress').innerText = inprogTasks.length;
+            document.getElementById('count-done').innerText = doneTasks.length;
+
+            todoCol.innerHTML = todoTasks.map(t => createTaskCard(t)).join('');
+            inprogCol.innerHTML = inprogTasks.map(t => createTaskCard(t)).join('');
+            doneCol.innerHTML = doneTasks.map(t => createTaskCard(t)).join('');
+        }
+
+        function createTaskCard(task) {
+            const proj = db.projects.find(p => p.id == task.projectId);
+            const priorityColors = {
+                'Cao': 'bg-rose-50 text-rose-600 border-rose-200',
+                'Trung bình': 'bg-amber-50 text-amber-600 border-amber-200',
+                'Thấp': 'bg-emerald-50 text-emerald-600 border-emerald-200'
+            };
+            return `
+                <div draggable="true" ondragstart="drag(event, ${task.id})" class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition">
+                    <div class="flex items-start justify-between gap-2 mb-2">
+                        <h4 class="font-bold text-slate-800 text-sm leading-snug">${task.title}</h4>
+                        <button onclick="deleteTask(${task.id})" class="text-slate-300 hover:text-rose-600 transition"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                    </div>
+                    <p class="text-[11px] text-blue-600 font-medium mb-3"><i class="fa-solid fa-folder-open mr-1"></i> ${proj ? proj.name : 'Dự án'}</p>
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+                        <span class="text-[11px] px-2 py-0.5 rounded border font-semibold ${priorityColors[task.priority]}">${task.priority}</span>
+                        <div class="flex items-center gap-1.5 text-xs text-slate-600 font-medium">
+                            <span class="w-5 h-5 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-[10px] font-bold">${task.assignee.charAt(0)}</span>
+                            <span class="truncate max-w-[100px]">${task.assignee}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Drag and Drop Drag handlers
+        let draggedTaskId = null;
+        function drag(ev, id) {
+            draggedTaskId = id;
+        }
+        function allowDrop(ev) {
+            ev.preventDefault();
+        }
+        function dropTask(ev, newStatus) {
+            ev.preventDefault();
+            const task = db.tasks.find(t => t.id === draggedTaskId);
+            if (task) {
+                task.status = newStatus;
+                db.activities.unshift({ time: "Vừa xong", text: `Đã chuyển trạng thái task '${task.title}' sang ${newStatus}.` });
+                saveDB();
+            }
+        }
+
+        function deleteTask(id) {
+            if(confirm("Bạn có chắc chắn muốn xóa công việc này?")) {
+                db.tasks = db.tasks.filter(t => t.id !== id);
+                saveDB();
+            }
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* STAFF CRUD MANAGEMENT                                                      */
+        /* -------------------------------------------------------------------------- */
+        function renderStaffTable() {
+            const query = document.getElementById('staff-search').value.toLowerCase();
+            const filteredStaff = db.staff.filter(s => s.name.toLowerCase().includes(query) || s.email.toLowerCase().includes(query) || s.position.toLowerCase().includes(query));
+
+            const tbody = document.getElementById('staff-table-body');
+            tbody.innerHTML = filteredStaff.map(s => `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="p-4 flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-full bg-indigo-500 text-white font-bold flex items-center justify-center text-sm shadow">${s.name.charAt(0)}</div>
+                        <div>
+                            <p class="font-bold text-slate-800">${s.name}</p>
+                            <span class="text-xs text-slate-400 font-mono">ID: #${s.id}</span>
+                        </div>
+                    </td>
+                    <td class="p-4 text-slate-600 font-medium">${s.position}</td>
+                    <td class="p-4 text-slate-500 font-mono text-xs">${s.email}</td>
+                    <td class="p-4"><span class="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold">${s.dept}</span></td>
+                    <td class="p-4 text-center">
+                        <button onclick="editStaff(${s.id})" class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition inline-flex items-center justify-center mr-1"><i class="fa-solid fa-pen text-xs"></i></button>
+                        <button onclick="deleteStaff(${s.id})" class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition inline-flex items-center justify-center"><i class="fa-solid fa-trash text-xs"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openStaffModal(id = null) {
+            document.getElementById('staff-modal').classList.remove('hidden');
+            if(id) {
+                document.getElementById('staff-modal-title').innerText = "Chỉnh sửa thông tin nhân sự";
+                const staff = db.staff.find(s => s.id === id);
+                document.getElementById('staff-id').value = staff.id;
+                document.getElementById('staff-name').value = staff.name;
+                document.getElementById('staff-mail').value = staff.email;
+                document.getElementById('staff-position').value = staff.position;
+                document.getElementById('staff-dept').value = staff.dept;
+            } else {
+                document.getElementById('staff-modal-title').innerText = "Thêm Nhân sự mới";
+                document.getElementById('staff-form').reset();
+                document.getElementById('staff-id').value = '';
+            }
+        }
+
+        function closeStaffModal() {
+            document.getElementById('staff-modal').classList.add('hidden');
+        }
+
+        function handleStaffSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('staff-id').value;
+            const name = document.getElementById('staff-name').value;
+            const email = document.getElementById('staff-mail').value;
+            const position = document.getElementById('staff-position').value;
+            const dept = document.getElementById('staff-dept').value;
+
+            if(id) {
+                const staff = db.staff.find(s => s.id == id);
+                staff.name = name;
+                staff.email = email;
+                staff.position = position;
+                staff.dept = dept;
+                db.activities.unshift({ time: "Vừa xong", text: `Đã cập nhật thông tin nhân sự ${name}.` });
+            } else {
+                db.staff.push({ id: Date.now(), name, email, position, dept });
+                db.activities.unshift({ time: "Vừa xong", text: `Đã thêm nhân sự mới: ${name}.` });
+            }
+            closeStaffModal();
+            saveDB();
+        }
+
+        function editStaff(id) {
+            openStaffModal(id);
+        }
+
+        function deleteStaff(id) {
+            if(confirm("Bạn có chắc chắn muốn xóa nhân sự này?")) {
+                db.staff = db.staff.filter(s => s.id !== id);
+                saveDB();
+            }
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* MODALS (TASK & PROJECT) HANDLERS                                           */
+        /* -------------------------------------------------------------------------- */
+        function openTaskModal() {
+            document.getElementById('task-modal').classList.remove('hidden');
+        }
+        function closeTaskModal() {
+            document.getElementById('task-modal').classList.add('hidden');
+        }
+        function handleTaskSubmit(e) {
+            e.preventDefault();
+            const title = document.getElementById('task-title').value;
+            const projectId = document.getElementById('task-project').value;
+            const priority = document.getElementById('task-priority').value;
+            const assignee = document.getElementById('task-assignee').value;
+            const status = document.getElementById('task-status').value;
+
+            db.tasks.push({ id: Date.now(), title, projectId, priority, assignee, status });
+            db.activities.unshift({ time: "Vừa xong", text: `Đã thêm công việc mới: '${title}'.` });
+            closeTaskModal();
+            saveDB();
+        }
+
+        function openProjectModal() {
+            document.getElementById('project-modal').classList.remove('hidden');
+        }
+        function closeProjectModal() {
+            document.getElementById('project-modal').classList.add('hidden');
+        }
+        function handleProjectSubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('proj-name').value;
+            const desc = document.getElementById('proj-desc').value;
+
+            db.projects.push({ id: Date.now(), name, desc });
+            db.activities.unshift({ time: "Vừa xong", text: `Đã tạo dự án mới: '${name}'.` });
+            closeProjectModal();
+            saveDB();
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* PROFILE CONFIGURATION                                                      */
+        /* -------------------------------------------------------------------------- */
+        function saveProfile(e) {
+            e.preventDefault();
+            db.currentUser.name = document.getElementById('prof-name').value;
+            db.currentUser.email = document.getElementById('prof-email').value;
+            db.currentUser.role = document.getElementById('prof-role').value;
+            db.activities.unshift({ time: "Vừa xong", text: "Đã cập nhật thông tin cá nhân hệ thống." });
+            saveDB();
+            alert("Lưu cấu hình cá nhân thành công!");
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* INITIALIZATION ON LOAD                                                     */
+        /* -------------------------------------------------------------------------- */
+        function initApp() {
+            checkAuth();
+            renderDashboard();
+            renderProjectSelects();
+            renderTasks();
+            renderStaffTable();
+        }
+
+        window.onload = initApp;
+    </script>
+</body>
+</html>
